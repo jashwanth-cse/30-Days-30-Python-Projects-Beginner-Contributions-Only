@@ -4,6 +4,10 @@ QR_SIZE = 21
 DATA_CODEWORDS = 19
 ERROR_CODEWORDS = 7
 MASK_PATTERN = 0
+MAX_TEXT_BYTES = 17
+DEFAULT_OUTPUT_FILENAME = "qr_code.svg"
+SVG_EXTENSION = ".svg"
+PBM_EXTENSION = ".pbm"
 
 
 def gf_multiply(left, right):
@@ -67,8 +71,8 @@ def create_error_codewords(data_codewords, error_count):
 def text_to_data_codewords(text):
     data = text.encode("utf-8")
 
-    if len(data) > 17:
-        raise ValueError("This simple QR generator supports up to 17 UTF-8 bytes.")
+    if len(data) > MAX_TEXT_BYTES:
+        raise ValueError(f"This simple QR generator supports up to {MAX_TEXT_BYTES} UTF-8 bytes.")
 
     bits = []
     bits.extend([0, 1, 0, 0])
@@ -247,7 +251,8 @@ def save_pbm(modules, filename, scale=10, quiet_zone=4):
             expanded_row = []
 
             for column in range(-quiet_zone, len(modules) + quiet_zone):
-                is_dark = 0 <= row < len(modules) and 0 <= column < len(modules) and modules[row][column]
+                is_inside_qr = 0 <= row < len(modules) and 0 <= column < len(modules)
+                is_dark = is_inside_qr and modules[row][column]
                 expanded_row.extend(["1" if is_dark else "0"] * scale)
 
             line = " ".join(expanded_row)
@@ -272,7 +277,10 @@ def save_svg(modules, filename, scale=10, quiet_zone=4):
                 if is_dark:
                     x = (column + quiet_zone) * scale
                     y = (row + quiet_zone) * scale
-                    file.write(f'<rect x="{x}" y="{y}" width="{scale}" height="{scale}" fill="black"/>\n')
+                    file.write(
+                        f'<rect x="{x}" y="{y}" width="{scale}" '
+                        f'height="{scale}" fill="black"/>\n'
+                    )
 
         file.write("</svg>\n")
 
@@ -281,16 +289,16 @@ def get_output_filename(filename):
     cleaned_filename = filename.strip()
 
     if not cleaned_filename:
-        return "qr_code.svg"
+        return DEFAULT_OUTPUT_FILENAME
 
     if "." not in cleaned_filename:
-        cleaned_filename += ".svg"
+        cleaned_filename += SVG_EXTENSION
 
     return cleaned_filename
 
 
 def save_qr_code(modules, filename):
-    if filename.lower().endswith(".pbm"):
+    if filename.lower().endswith(PBM_EXTENSION):
         save_pbm(modules, filename)
     else:
         save_svg(modules, filename)
@@ -298,7 +306,7 @@ def save_qr_code(modules, filename):
 
 def main():
     print("Simple QR Code Generator")
-    print("Enter short text or a short URL. Maximum: 17 UTF-8 bytes.")
+    print(f"Enter short text or a short URL. Maximum: {MAX_TEXT_BYTES} UTF-8 bytes.")
 
     text = input("Text to encode: ").strip()
 
@@ -306,7 +314,7 @@ def main():
         print("No text entered. Please run the program again with some text.")
         return
 
-    filename = get_output_filename(input("Output file name (default: qr_code.svg): "))
+    filename = get_output_filename(input(f"Output file name (default: {DEFAULT_OUTPUT_FILENAME}): "))
 
     try:
         matrix = create_qr_matrix(text)
